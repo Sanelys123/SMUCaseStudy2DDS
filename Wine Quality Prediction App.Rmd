@@ -1,0 +1,77 @@
+---
+title: "Wine Prediction App"
+author: "Samson Akomolafe"
+date: "2024-12-15"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(shiny)
+library(caret)
+
+# UI component
+ui <- fluidPage(
+  titlePanel("Wine Quality Predictor"), 
+  # Instructions for users
+  h3("Model Compatibility"),
+  p("Ensure that the model you upload was trained on the same structure and features as the test data. The test data should have the same columns (excluding the target variable) as those used during training."),
+  
+  h3("Upload Your Trained Model"),
+  p("Click the 'Upload Trained Model (.rds)' button and select your '.rds' file that contains the trained model."),
+  
+  h3("Upload Your Test Data"),
+  p("Click the 'Upload Test Data (.csv)' button and select your '.csv' file with the test data, then click 'Predict Quality'."),
+  
+  sidebarLayout(
+    sidebarPanel(
+      fileInput("model", "Upload Trained Model (.rds)", accept = ".rds"),
+      fileInput("test_data", "Upload Test Data (.csv)", accept = ".csv"),
+      actionButton("predict", "Predict Quality")
+    ),
+    
+    mainPanel(
+      tableOutput("predictions"),
+      verbatimTextOutput("summary")
+    )
+  )
+)
+
+# Server component
+server <- function(input, output) {
+  observeEvent(input$predict, {
+    req(input$model, input$test_data)  # Ensure both files are uploaded
+    
+    # Load the trained model
+    model <- readRDS(input$model$datapath)
+    
+    # Read the test data
+    test_data <- read.csv(input$test_data$datapath)
+    
+    # Make predictions
+    predictions <- round(predict(model, newdata = test_data))
+    
+    # Create a data frame for output
+    results <- data.frame(test_data, Predicted_Quality = predictions)
+    
+    # Output predictions table
+    output$predictions <- renderTable({
+      results
+    })
+    
+    # Show summary of predictions
+    output$summary <- renderPrint({
+      summary(predictions)
+    })
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+
+```

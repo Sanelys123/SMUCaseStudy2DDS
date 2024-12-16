@@ -1,0 +1,591 @@
+---
+title: "Wine Prediction"
+author: "Samson Akomolafe"
+date: "2024-11-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#To carry out wine quality prediction on a train dataset, I am going to follow these enumerated steps below:
+
+#1.    Data Preparation
+
+##1a.    Loading the Data Set: Import necessary libraries and load training dataset.
+      
+##1b.    Explore the Data: Understand the dataset structure, check for missing values, and examine the target variable (wine quality).
+      
+##1c.    Data Cleaning: Handle any missing values and remove duplicates if necessary.
+
+#2.    Data Pre-processing
+
+##2a.    Feature Selection: Identify and select relevant features that may affect wine         quality.
+
+##2b.    Normalization/Standardization: Scale the features to ensure they are on a similar scale, which can be essential for some algorithms.(if required)
+
+##2c.    Encoding Categorical Variables: If there are any categorical features, convert them into numerical format using techniques like one-hot encoding.
+
+#3.     Splitting the Data
+
+##3a.    If you have a validation set, split the training data into training and validation sets. This can be done using train_test_split from sklearn.
+
+#4. Model Selection
+
+##4a.    Choose a machine learning model appropriate for the task. Common algorithms for regression or classification tasks include:
+
+##4b    For this Project, I am going to use these 2 regression model and select the model that predicted better for the testing data set. These models are;
+##4b1.    Decision Trees
+##4b2.    Multiple Linear Regression
+
+#5.       Model Training
+
+##5a.   Fit the model to the training data using the selected features and target variable.
+
+#6.     Model Evaluation
+
+##6a.   Evaluate the model's performance using appropriate metrics:
+
+##6b.   For regression: I am going to employ Mean Squared Error (MSE), R² score. And for classification I will use Accuracy, and Recall.
+
+#7.   Hyperparameter Tuning- I am not going to do hyperparameter tuning for this modelling.
+
+#8. Make Predictions: I am going to use the trained model to make quality predictions on the provided test dataset.
+
+```{r}
+
+#1.    Data Preparation
+
+#1a.    Loading the Data Set: Import necessary libraries and load training dataset.
+      
+#1b.    Explore the Data: Understand the dataset structure, check for missing values, and examine the target variable (wine quality).
+
+# Load required libraries
+library(caret)
+library(randomForest)
+library(dplyr)
+library(reshape2)
+library(corrplot)
+library(GGally)
+library(plotly)
+
+# Load the train dataset
+wine_data <- read.csv(file.choose(),header = TRUE)
+
+
+# Explore the dataset
+str(wine_data)
+
+#observation
+#1. The train dataset has 15 variables
+#2. There are 2 categorical variables in the data, location and type
+#3. The data has 5463 columns
+#4. The dataset has integer, string and numerical variables
+#5. The dataset has a quality column, that is, the prediction variable in the dataset
+
+#Understand the structure of the dataset
+colSums(is.na(wine_data))  # Count missing values in each column
+
+#Observation
+#1. There are no missing values in the dataset
+#2. I will proceed to the next step of my work.
+
+#EXPLORATIVE DATA ANALYSIS *EDA*
+#Indept work on the EDA section have been presented as a group exercise with Hayoung #and Jack.However, below is some of the codes we used for the presentations.
+
+#Quality
+ggplot(wine_data, aes(x = quality)) + 
+  geom_bar(fill = "royalblue") + 
+  labs(title = "Distribution of Wine Quality", x = "Quality", y = "Count")
+#Please refer to my EDA group presentation for observation
+
+#Alcohol Content
+ggplot(wine_data, aes(x = alcohol)) + 
+  geom_histogram(bins = 30, fill = "lightgreen", color = "black") + 
+  labs(title = "Distribution of Alcohol Content", x = "Alcohol", y = "Frequency")
+#Please refer to my EDA group presentation for observation
+
+#pH Levels
+ggplot(wine_data, aes(x = pH)) + 
+  geom_histogram(bins = 30, fill = "lightcoral", color = "black") + 
+  labs(title = "Distribution of pH Levels", x = "pH", y = "Frequency")
+#Please refer to my EDA group presentation for observation
+
+#Citrate Levels
+ggplot(wine_data, aes(x = citric.acid)) + 
+  geom_histogram(bins = 30, fill = "gold", color = "black") + 
+  labs(title = "Distribution of Citric Acid Levels", x = "Citric Acid", y = "Frequency")
+#Please refer to my EDA group presentation for observation
+
+#Quality vs Alcohol
+ggplot(wine_data, aes(x = alcohol, y = quality)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") + 
+  labs(title = "Quality vs Alcohol", x = "Alcohol", y = "Quality")
+#Please refer to my EDA group presentation for observation
+     
+#pH vs Quality
+ggplot(wine_data, aes(x = pH, y = quality)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue") + 
+  labs(title = "Quality vs pH", x = "pH", y = "Quality")
+#Please refer to my EDA group presentation for observation
+     
+#Citrate Levels vs Quality:
+ggplot(wine_data, aes(x = citric.acid, y = quality)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "green") + 
+  labs(title = "Quality vs Citric Acid", x = "Citric Acid", y = "Quality")
+#Please refer to my EDA group presentation for observation
+     
+# Select only numeric columns
+numeric_wine_data <- wine_data %>%
+  select(where(is.numeric))
+correlation_matrix <- cor(numeric_wine_data)
+melted_cormat <- melt(correlation_matrix)
+ggplot(data = melted_cormat, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(limit = c(-1, 1), low = "red", high = "green", mid = "white", 
+                          midpoint = 0, space = "Lab", name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 12, hjust = 1)) +
+  coord_fixed()
+#Please refer to my EDA group presentation for observation
+
+#Box plots for categorical analysis:
+#To analyze the distribution of alcohol or pH levels across different quality levels:
+ggplot(wine_data, aes(x = as.factor(quality), y = alcohol)) + 
+  geom_boxplot(fill = "lightblue") + 
+  labs(title = "Alcohol Content by Quality", x = "Quality", y = "Alcohol")
+#Please refer to my EDA group presentation for observation
+
+ggplot(wine_data, aes(x = as.factor(quality), y = citric.acid)) + 
+  geom_boxplot(fill = "green") + 
+  labs(title = "Alcohol Content by Quality", x = "Quality", y = "Citric Acid")
+#Please refer to my EDA group presentation for observation
+
+# Summarize average quality by location and type
+summary_data <- wine_data %>%
+  group_by(location, type) %>%
+  summarise(avg_quality = mean(quality, na.rm = TRUE),
+            count = n()) %>%
+  arrange(desc(avg_quality))
+#Please refer to my EDA group presentation for observation
+
+# View the summary data
+print(summary_data)
+
+
+# Create a bar plot
+ggplot(summary_data, aes(x = reorder(location, -avg_quality), y = avg_quality, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Wine Quality by Location and Type",
+       x = "Location",
+       y = "Average Quality") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#Please refer to my EDA group presentation for observation
+
+
+# ANOVA test
+anova_result <- aov(quality ~ location * type, data = wine_data)
+summary(anova_result)
+#Please refer to my EDA group presentation for observation
+
+# Convert 'type' and 'location' to factors
+wine_data$type <- as.factor(wine_data$type)
+wine_data$location <- as.factor(wine_data$location)
+
+# Create a pairplot for quality, type, and location
+ggpairs(wine_data, 
+        columns = c("quality", "type", "location"), 
+        mapping = aes(color = type), 
+        lower = list(continuous = wrap("points", alpha = 0.6)),
+        upper = list(continuous = wrap("cor", size = 3))) +
+        labs(title = "Wine Quality by Location and Type")
+#Please refer to my EDA group presentation for observation
+
+#quick view of the data
+table(wine_data$quality, wine_data$location, wine_data$type)
+table(wine_data$quality)
+
+#3D plptting of wine data
+plot_ly(data = wine_data, 
+        x = ~volatile.acidity, 
+        y = ~density,
+        z = ~alcohol, 
+        type = "scatter3d", 
+        mode = "markers",
+        color = ~as.factor(quality), 
+        marker = list(size = 4,  opacity = 0.8)) |>
+  layout(title = "3D Scatterplot: Location of Wine by Alcohol, Density, and Volatile Acidity",
+         scene = list(xaxis = list(title = "Volatile Acidity"),
+                      yaxis = list(title = "Density"),
+                      zaxis = list(title = "Alcohol")),
+         legend = list(title = list(text = "Legend")))
+#Please refer to my EDA group presentation for observation
+
+################################
+#END OF EDA SECTION
+################################
+
+```
+
+```{r}
+
+
+###################################################
+#MODEL 1 - LINEAR REGRESSION BY DECISION TREE MODEL
+###################################################
+   
+#Pre-Processing of Data for modelling
+#Separate the Categorical Variables
+numerical_features <- names(wine_data)[sapply(wine_data, is.numeric)] 
+categorical_features <- wine_data[, c("type", "location")]
+
+# Create dummy variables for the specified categorical features
+dummy_vars <- model.matrix(~ type + location - 1, data = wine_data)
+
+# Combine dummy variables with the original numerical features
+wine_data_with_dummies <- cbind(wine_data[numerical_features], dummy_vars)
+
+# View the resulting data frame
+head(wine_data_with_dummies)
+
+# Split the dataset into training and testing sets
+set.seed(123)
+train_index <- createDataPartition(wine_data_with_dummies$quality, p = 0.8, list = FALSE)
+train_data <- wine_data_with_dummies[train_index, ]
+test_data <- wine_data_with_dummies[-train_index, ]
+
+# Train a random forest regression model
+rf_model <- randomForest(quality ~ . - ID, data = train_data, importance = TRUE, ntree = 1000)
+
+# Print the model summary
+print(rf_model)
+
+# Analyze feature importance
+importance_values <- importance(rf_model)
+importance_df <- data.frame(Feature = rownames(importance_values), Importance = importance_values[, 1])
+importance_df <- importance_df %>%
+  arrange(desc(Importance))
+
+# Print feature importance
+print(importance_df)
+
+# Plot feature importance
+barplot(importance_df$Importance, names.arg = importance_df$Feature, las = 2, 
+        main = "Feature Importance", col = "blue", cex.names = 0.7)
+
+# Predict on the test Data set
+test_dat <- read.csv(file.choose(), header=TRUE)
+
+#Prepare the test dataset to match the structure train data
+#Separate the Categorical Variables
+num_features <- names(test_dat)[sapply(test_dat, is.numeric)] 
+cat_features <- test_dat[, c("type", "location")]
+
+# Create dummy variables for the specified categorical features
+dummy_vars_test <- model.matrix(~ type + location - 1, data = test_dat)
+
+# Combine with numerical features if needed
+test_data_rf <- cbind(test_dat[num_features], dummy_vars_test)
+
+#Predict quality on test data
+Quality <- round(predict(rf_model, newdata = test_data_rf))
+
+#Combine predicted "Wine Quality" column with test data
+New_wine_data = data.frame(test_data_rf, Quality)
+
+#Display the predicted test data
+print(New_wine_data)
+
+# Evaluate the model performance
+results_rf <- data.frame(Actual = New_wine_data$Quality, Predicted = Quality)
+mse_rf <- mean((results_rf$Actual - results_rf$Predicted)^2)
+rmse_rf <- sqrt(mse_rf)
+
+# Print the evaluation metrics
+cat("Root Mean Squared Error (RMSE):", rmse_rf, "\n")
+
+# Optionally, I will plot actual vs predicted values
+plot(results_rf$Actual, results_rf$Predicted, xlab = "Actual Quality", ylab = "Predicted Quality", 
+     main = "Actual vs Predicted Wine Quality", pch = 19, col = "blue")
+abline(0, 1, col = "red")
+
+# Create confusion matrix
+confusion_mat_rf <- confusionMatrix(as.factor(results_rf$Predicted), as.factor(results_rf$Actual))
+print(confusion_mat_rf)
+
+# Create a confusion matrix table
+cm_table_rf <- as.data.frame(confusion_mat_rf$table)
+
+# Plot confusion matrix
+ggplot(data = cm_table_rf, aes(x = Reference, y = Prediction, fill = Freq)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "blue") +
+  geom_text(aes(label = Freq), vjust = 1) +
+  labs(title = "Confusion Matrix", x = "Actual Quality", y = "Predicted Quality") +
+  theme_minimal()
+
+# Extract TN, FP, FN, TP
+TN <- confusion_mat_rf$table[1, 1]
+TP <- confusion_mat_rf$table[2, 2]
+FP <- confusion_mat_rf$table[1, 2]
+FN <- confusion_mat_rf$table[2, 1]
+
+# Print the values
+cat("True Negatives (TN):", TN, "\n")
+cat("True Positives (TP):", TP, "\n")
+cat("False Positives (FP):", FP, "\n")
+cat("False Negatives (FN):", FN, "\n")
+
+# Create a data frame for plotting confusion matrix values
+cm_values_rf <- data.frame(
+  Type = c("True Negatives", "False Positives", "False Negatives", "True Positives"),
+  Count = c(TN, FP, FN, TP)
+)
+
+# Plot confusion matrix values
+ggplot(cm_values_rf, aes(x = Type, y = Count, fill = Type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("yellow", "blue", "orange", "skyblue")) +
+  labs(title = "Confusion Matrix Values", x = "Type", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+```
+
+#I wil now build multiple linear regression to ne able to compare both models and then choose the one.
+
+```{r}
+
+###################################################
+#MODEL 2 - MULTIPLE LINEAR REGRESSION 
+###################################################
+
+# Load necessary packages
+library(tidyr)
+library(ggplot2)
+
+
+# Load the dataset
+df <- read.csv(file.choose(),header = TRUE)
+
+
+table(df$quality,df$location)
+
+table(df$type,df$location)
+
+#Separate the Categorical Variables
+nume_features <- names(df)[sapply(df, is.numeric)] 
+cate_features <- df[, c("type", "location")]
+
+# Create dummy variables for the specified categorical features
+dummies_df <-  model.matrix(~ type + location - 1, data = df)
+
+# Combine with numerical features if needed
+wine_encoded <- cbind(df[, nume_features], dummies_df)
+
+
+#Model Building
+# For reproducibility
+set.seed(123)  
+train_index_lr <- sample(1:nrow(wine_encoded), 0.7 * nrow(df))
+train_data_lr <- wine_encoded[train_index, ]
+test_data_lr <- wine_encoded[-train_index, ]
+
+
+# Fit the model
+model_lr <- lm(quality ~ ., data = train_data_lr)
+
+# Summary of the model
+summary(model_lr)
+
+#Save the model in RDS file format
+#saveRDS(model_lr, "wine_trained_model.rds")
+#this file is needed, I will use it as my Shiny app trained model to be able to predict wine quality on the test data
+
+# Get the coefficients
+importance <- summary(model_lr)$coefficients
+importance <- importance[-1, ]  # Remove the intercept
+importance <- importance[order(-abs(importance[, 1])), ]  # Sort by absolute value
+print(importance)
+
+# Prepare the data for plotting
+importance_df <- data.frame(Variable = rownames(importance),
+                            Coefficient = importance[, 1])
+
+# Plotting the bar chart
+ggplot(importance_df, aes(x = reorder(Variable, abs(Coefficient)), y = Coefficient)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +  # Flip the axes for better readability
+  labs(title = "Variable Importance from Model Coefficients",
+       x = "Variables",
+       y = "Coefficient Value") +
+  theme_minimal()
+
+
+# Predictions of test data
+test_dat_mlr <- read.csv(file.choose(), header=TRUE)
+
+#Separate the Categorical Variables to match train data structure
+numer_features <- names(test_dat_mlr)[sapply(test_dat_mlr, is.numeric)] 
+categ_features <- test_dat_mlr[, c("type", "location")]
+
+# Create dummy variables for the specified categorical features
+dummies_mlr <-  model.matrix(~ type + location - 1, data = test_dat_mlr)
+
+# Combine the numeric features and the dummy variables
+test_data_lr <- cbind(test_dat_mlr[, numer_features],dummies_mlr)
+
+# Make predictions
+kwality <- round(predict(model_lr, newdata = test_data_lr))
+
+New_wine_data_lr <- data.frame(test_data_lr, kwality)
+
+#Save the Pridicted Data as a CSV file
+#write.csv(New_wine_data_lr, "Wine Predicted Data.csv")
+
+# Compare predictions with actual quality
+results_lr <- data.frame(Actual_lr = New_wine_data_lr$kwality, Predicted_lr = kwality)
+print(results_lr)
+
+# Plotting Actual vs Predicted for Multiple Linear Regression
+ggplot(New_wine_data_lr, aes(x = New_wine_data_lr$kwality, y = kwality)) +
+    geom_point(color = "blue", alpha = 0.5) +
+    geom_abline(slope = 1, intercept = 0, color = "red") +
+    labs(title = "Multiple Linear Regression: Actual vs Predicted Quality",
+         x = "Actual Wine Quality",
+         y = "Predicted Wine Quality") +
+    theme_minimal()
+
+# Calculate RMSE
+rmse_lr <- sqrt(mean((kwality - New_wine_data_lr$kwality) ^ 2))
+cat("Root Mean Squared Error:", rmse_lr, "\n")
+
+# Create confusion matrix
+confusion_mat_lr <- confusionMatrix(as.factor(results_lr$Predicted_lr), as.factor(results_lr$Actual_lr))
+print(confusion_mat_lr)
+
+# Create a confusion matrix table
+cm_table_lr <- as.data.frame(confusion_mat_lr$table)
+
+# Plot confusion matrix
+ggplot(data = cm_table_lr, aes(x = Reference, y = Prediction, fill = Freq)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "blue") +
+  geom_text(aes(label = Freq), vjust = 1) +
+  labs(title = "Confusion Matrix", x = "Actual Quality", y = "Predicted Quality") +
+  theme_minimal()
+
+# Extract TN, FP, FN, TP
+TN_lr <- confusion_mat_lr$table[1, 1]
+TP_lr <- confusion_mat_lr$table[2, 2]
+FP_lr <- confusion_mat_lr$table[1, 2]
+FN_lr <- confusion_mat_lr$table[2, 1]
+
+# Print the values
+cat("True Negatives (TN):", TN_lr, "\n")
+cat("True Positives (TP):", TP_lr, "\n")
+cat("False Positives (FP):", FP_lr, "\n")
+cat("False Negatives (FN):", FN_lr, "\n")
+
+# Create a data frame for plotting confusion matrix values
+cm_values_lr <- data.frame(
+  Type = c("True Negatives", "False Positives", "False Negatives", "True Positives"),
+  Count = c(TN_lr, FP_lr, FN_lr, TP_lr)
+)
+
+# Plot confusion matrix values
+ggplot(cm_values_lr, aes(x = Type, y = Count, fill = Type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("yellow", "blue", "orange", "skyblue")) +
+  labs(title = "Confusion Matrix Values", x = "Type", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+```
+
+```{r}
+
+# Compare the RMSE of the two Models I built (Decision Tree & Multiple Linear Regression Model)
+
+# Print RMSE values
+cat("RMSE for Multiple Linear Regression Model:", rmse_lr, "\n")
+cat("RMSE for Random Forest Model:", rmse_rf, "\n")
+
+# Compare RMSE and pick the better model
+if (rmse_lr < rmse_rf) {
+  cat("The Linear Regression model is better.\n")
+} else if (rmse_rf < rmse_lr) {
+  cat("The Random Forest model is better.\n")
+} else {
+  cat("Both models have the same RMSE.\n")
+}
+
+```
+```{r}
+
+# Replace actual_values with the actual outcomes in your dataset
+predictions_lr <- predict(model_lr, newdata = test_data_lr)
+predictions_rf <- predict(rf_model, newdata = test_data_rf)
+
+actual_values_lr <- results_lr$Actual 
+actual_values_rf <- results_rf$Actual 
+
+# Calculate accuracy for both models
+accuracy_lr <- mean(predictions_lr == actual_values_lr)
+accuracy_rf <- mean(predictions_rf == actual_values_rf)
+
+# Print accuracy values
+cat("Accuracy for Multiple Linear Regression Model:", accuracy_lr, "\n")
+cat("Accuracy for Random Forest Model:", accuracy_rf, "\n")
+
+# Compare accuracy and pick the better model
+if (accuracy_lr > accuracy_rf) {
+  cat("The Linear Regression model is better.\n")
+} else if (accuracy_rf > accuracy_lr) {
+  cat("The Random Forest model is better.\n")
+} else {
+  cat("Both models have the same accuracy.\n")
+}
+
+
+```
+
+################################
+#CONCLUSIONS
+################################
+#1 EDA CONCLUSION
+#Summary of Interpretation of ANOVA
+
+#a. Location Effect: The results indicate a highly significant effect of location on wine quality (p < 0.001). This suggests that different locations produce wines of significantly different quality. But the dataset did not show what location. More in-depth work is required.
+
+#b. Type Effect: The effect of wine type on quality is also significant (p < 0.05), indicating that the type of wine does have an impact on its quality, although this effect is not as strong as the location effect. We could not clearly see which of the type of wine had more quality based on the dataset.
+
+#c. Interaction Effect: The interaction between location and type is highly significant (p < 0.001). This means that the effect of wine type on quality varies depending on the location, indicating complex relationships between these factors. As mentioned above, more wine data from California and Texas id required to do more in-depth work 
+
+#d. Conclusion       	
+#In conclusion, both location and type significantly influence wine quality, and their interaction suggests that the effect of type is not consistent across different locations. 
+#This information can be valuable for winemakers and consumers alike, as it highlights the importance of both geographical and varietal factors in determining wine quality.
+
+#2. CONCLUSION ON THE MODEL BUILT ON THE TRAIN DATA
+#a. The comparison result of the models showed that both models predicted good on test data. There is no better models between the models I used according to my analysis.
+
+#b. Since the analysis show that the results are both good, I will then use by subjective opinion to choose the model I will use on the "GIVEN" test data. I prefer MULTIPLE LINEAR REGRESSION.
+
+#c. This is because of the feature importance chosen my the model, which is DENSITY. The feature chosen my RANDOM FOREST did not clearly stated a particular variable, but provided a clue that "location" is the most important feature. I do not know whether it is California or Texas. The dummy used did not explicitly splitted that variable for me to know exactly.
+
+#d. Therefore, I have choosen to use MULTIPLE LINEAR REGRESSION as my model used to predict WINE QUALITY on the given test data of the project.
+
+#e. The trained data was saved as a RDS file and included in my submission. This is used as trianed data for my Shiny App file, named "Wine Quality Prediction App.rmd".
+
+#f. The Test Predicted Wine Quality was saved as a CSV file and included in my submission. This file is named "Wine Predicted Data.csv"
+
+
+
+
