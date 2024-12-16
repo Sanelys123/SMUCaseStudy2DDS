@@ -64,9 +64,9 @@ My Final Project for DDS Course
 #2. CONCLUSION ON THE MODEL BUILT ON THE TRAIN DATA
 #a. The comparison result of the models showed that both models predicted good on test data. There is no better models between the models I used according to my analysis.
 
-#b. Since the analysis show that the results are both good, I will then use by subjective opinion to choose the model I will use on the "GIVEN" test data. I prefer MULTIPLE LINEAR REGRESSION.
+#b. Since the analysis show that the results are both good, I will then use my subjective opinion to choose the model I will use on the "GIVEN" test data. I prefer MULTIPLE LINEAR REGRESSION.
 
-#c. This is because of the feature importance chosen my the model, which is DENSITY. The feature chosen my RANDOM FOREST did not clearly stated a particular variable, but provided a clue that "location" is the most important feature. I do not know whether it is California or Texas. The dummy used did not explicitly splitted that variable for me to know exactly.
+#c. This is because of the feature importance result of the model, which is DENSITY. The feature result by RANDOM FOREST did not clearly stated a particular variable, but provided a clue that "location" is the most important feature. I do not know whether it is California or Texas. The dummy used did not explicitly splitted that variable into 2 columns for me to know exactly.
 
 #d. Therefore, I have choosen to use MULTIPLE LINEAR REGRESSION as my model used to predict WINE QUALITY on the given test data of the project.
 
